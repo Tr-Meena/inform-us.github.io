@@ -202,3 +202,205 @@
 
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>FLOOPY HUB IS FOR YOU</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #70c5ce;
+      font-family: Arial, sans-serif;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #70c5ce;
+    }
+
+    #restartBtn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 300px;
+      padding: 10px 20px;
+      font-size: 18px;
+      display: none;
+      background: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+  <button id="restartBtn">Restart</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const restartBtn = document.getElementById("restartBtn");
+
+    let frames = 0;
+    let score = 0;
+    let gameOver = false;
+    const DEGREE = Math.PI / 180;
+
+    // Bird
+    const bird = {
+      x: 50,
+      y: 150,
+      width: 34,
+      height: 24,
+      gravity: 0.25,
+      lift: 4.6,
+      velocity: 0,
+      rotation: 0,
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.fillStyle = "yellow";
+        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+        ctx.restore();
+      },
+      flap() {
+        if (!gameOver) this.velocity = -this.lift;
+      },
+      update() {
+        this.velocity += this.gravity;
+        this.y += this.velocity;
+
+        if (this.y + this.height / 2 >= canvas.height) {
+          this.y = canvas.height - this.height / 2;
+          this.velocity = 0;
+          gameOver = true;
+          restartBtn.style.display = "block";
+        }
+
+        this.rotation = this.velocity >= this.lift ? 90 * DEGREE : -25 * DEGREE;
+      },
+      reset() {
+        this.y = 150;
+        this.velocity = 0;
+      }
+    };
+
+    // Pipes
+    const pipes = {
+      position: [],
+      width: 50,
+      gap: 120,
+      maxHeight: 300,
+      dx: 2,
+      draw() {
+        for (let i = 0; i < this.position.length; i++) {
+          let p = this.position[i];
+          ctx.fillStyle = "red";
+          ctx.fillRect(p.x, p.y, this.width, this.maxHeight);
+          ctx.fillRect(p.x, p.y + this.maxHeight + this.gap, this.width, canvas.height);
+        }
+      },
+      update() {
+        if (frames % 100 === 0) {
+          this.position.push({
+            x: canvas.width,
+            y: -Math.floor(Math.random() * this.maxHeight)
+          });
+        }
+
+        for (let i = 0; i < this.position.length; i++) {
+          let p = this.position[i];
+          p.x -= this.dx;
+
+          // Collision detection
+          if (
+            bird.x + bird.width / 2 > p.x &&
+            bird.x - bird.width / 2 < p.x + this.width &&
+            (
+              bird.y - bird.height / 2 < p.y + this.maxHeight ||
+              bird.y + bird.height / 2 > p.y + this.maxHeight + this.gap
+            )
+          ) {
+            gameOver = true;
+            restartBtn.style.display = "block";
+          }
+
+          // Score counting
+          if (!p.scored && p.x + this.width < bird.x) {
+            score++;
+            p.scored = true;
+          }
+
+          // Remove off-screen pipes
+          if (p.x + this.width < 0) {
+            this.position.shift();
+          }
+        }
+      },
+      reset() {
+        this.position = [];
+      }
+    };
+
+    function drawBackground() {
+      ctx.fillStyle = "#70c5ce";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "#fff";
+      ctx.font = "28px Arial";
+      ctx.fillText("Score: " + score, 20, 40);
+    }
+
+    function drawGameOver() {
+      ctx.fillStyle = "#fff";
+      ctx.font = "36px Arial";
+      ctx.fillText("Game Over", 110, 250);
+    }
+
+    function update() {
+      if (!gameOver) {
+        bird.update();
+        pipes.update();
+      }
+    }
+
+    function draw() {
+      drawBackground();
+      pipes.draw();
+      bird.draw();
+      drawScore();
+
+      if (gameOver) {
+        drawGameOver();
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      frames++;
+      requestAnimationFrame(loop);
+    }
+
+    canvas.addEventListener("click", () => bird.flap());
+    restartBtn.addEventListener("click", () => {
+      bird.reset();
+      pipes.reset();
+      score = 0;
+      frames = 0;
+      gameOver = false;
+      restartBtn.style.display = "none";
+    });
+
+    loop();
+  </script>
+</body>
+</html>
