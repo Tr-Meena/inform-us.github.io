@@ -1,2 +1,2 @@
-# inform-us.github.io
-Guys here we will upload news and important updates !!! wake up 
+# inform-us / add apps and games
+Guys here we will advertise games and apps  !!! wake up 
