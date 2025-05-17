@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>App Portal with Reviews</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f2f2f2; }
+    header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
+    .container { padding: 20px; max-width: 800px; margin: auto; }
+    .hidden { display: none; }
+    input, button, textarea { display: block; margin: 10px 0; padding: 10px; width: 100%; }
+    button { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    .card { background: white; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    .card .owner-tools { margin-top: 10px; }
+    .card .comment-section { margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd; }
+    .card .comment { font-size: 0.9em; background: #f9f9f9; margin: 5px 0; padding: 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+
+  <header><h1>App Portal</h1></header>
+
+  <div class="container">
+
+    <!-- Registration/Login Section -->
+    <div id="auth-section">
+      <h2 id="auth-title">Register</h2>
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="authenticate()">Submit</button>
+    </div>
+
+    <!-- Main Content Section -->
+    <div id="main-content" class="hidden">
+      <h2>Welcome, <span id="userDisplay"></span></h2>
+
+      <h3>Featured Apps</h3>
+      <div class="card">🚀 Game Galaxy - A thrilling space battle adventure!</div>
+      <div class="card">📷 PhotoFix - AI-powered photo editing tool.</div>
+
+      <h3>Reviews</h3>
+      <textarea id="reviewInput" placeholder="Write a review..."></textarea>
+      <button onclick="postReview()">Post Review</button>
+
+      <div id="reviews"></div>
+    </div>
+
+  </div>
+
+  <script>
+    const authSection = document.getElementById("auth-section");
+    const mainContent = document.getElementById("main-content");
+    const userDisplay = document.getElementById("userDisplay");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const authTitle = document.getElementById("auth-title");
+
+    const currentUserKey = "currentUser";
+    const usersKey = "users";
+    const reviewsKey = "reviews";
+
+    window.onload = () => {
+      const currentUser = JSON.parse(localStorage.getItem(currentUserKey));
+      if (currentUser) {
+        loginSuccess(currentUser.username);
+      } else {
+        const users = JSON.parse(localStorage.getItem(usersKey) || "[]");
+        authTitle.textContent = users.length > 0 ? "Sign In" : "Register";
+      }
+      loadReviews();
+    };
+
+    function authenticate() {
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+
+      if (!username || !password) {
+        alert("Please enter both username and password.");
+        return;
+      }
+
+      let users = JSON.parse(localStorage.getItem(usersKey) || "[]");
+      const existingUser = users.find(u => u.username === username);
+
+      if (authTitle.textContent === "Register") {
+        if (existingUser) {
+          alert("Username already exists.");
+          return;
+        }
+        users.push({ username, password });
+        localStorage.setItem(usersKey, JSON.stringify(users));
+        localStorage.setItem(currentUserKey, JSON.stringify({ username }));
+        loginSuccess(username);
+      } else {
+        if (!existingUser || existingUser.password !== password) {
+          alert("Invalid login credentials.");
+          return;
+        }
+        localStorage.setItem(currentUserKey, JSON.stringify({ username }));
+        loginSuccess(username);
+      }
+    }
+
+    function loginSuccess(username) {
+      userDisplay.textContent = username;
+      authSection.classList.add("hidden");
+      mainContent.classList.remove("hidden");
+      loadReviews();
+    }
+
+    function postReview() {
+      const currentUser = JSON.parse(localStorage.getItem(currentUserKey));
+      const reviewText = document.getElementById("reviewInput").value.trim();
+      if (!reviewText) return;
+
+      const reviews = JSON.parse(localStorage.getItem(reviewsKey) || "[]");
+      reviews.push({ id: Date.now(), user: currentUser.username, text: reviewText, likes: 0, read: false, comments: [] });
+      localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+      document.getElementById("reviewInput").value = "";
+      loadReviews();
+    }
+
+    function loadReviews() {
+      const currentUser = JSON.parse(localStorage.getItem(currentUserKey));
+      const reviewsContainer = document.getElementById("reviews");
+      const reviews = JSON.parse(localStorage.getItem(reviewsKey) || "[]");
+      reviewsContainer.innerHTML = "";
+
+      reviews.forEach(review => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <strong>${review.user}</strong>: ${review.text}
+          ${review.read ? "<span style='color:green;'>✔ Read</span>" : ""}
+          <div class="owner-tools">
+            ${review.user === currentUser.username ? `
+              <button onclick="likeReview(${review.id})">Like (${review.likes})</button>
+              <button onclick="markAsRead(${review.id})">Mark as Read</button>
+              <button onclick="deleteReview(${review.id})">Delete</button>
+            ` : `
+              <div class="comment-section">
+                <input type="text" id="comment-${review.id}" placeholder="Add a comment..." onkeydown="if(event.key==='Enter'){commentOnReview(${review.id})}">
+                ${review.comments.map(c => `<div class="comment"><strong>${c.user}</strong>: ${c.text}</div>`).join("")}
+              </div>
+            `}
+          </div>
+        `;
+        reviewsContainer.appendChild(div);
+      });
+    }
+
+    function likeReview(id) {
+      const reviews = JSON.parse(localStorage.getItem(reviewsKey));
+      const review = reviews.find(r => r.id === id);
+      review.likes++;
+      localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+      loadReviews();
+    }
+
+    function markAsRead(id) {
+      const reviews = JSON.parse(localStorage.getItem(reviewsKey));
+      const review = reviews.find(r => r.id === id);
+      review.read = true;
+      localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+      loadReviews();
+    }
+
+    function deleteReview(id) {
+      let reviews = JSON.parse(localStorage.getItem(reviewsKey));
+      reviews = reviews.filter(r => r.id !== id);
+      localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+      loadReviews();
+    }
+
+    function commentOnReview(id) {
+      const currentUser = JSON.parse(localStorage.getItem(currentUserKey));
+      const input = document.getElementById(`comment-${id}`);
+      const commentText = input.value.trim();
+      if (!commentText) return;
+
+      const reviews = JSON.parse(localStorage.getItem(reviewsKey));
+      const review = reviews.find(r => r.id === id);
+      review.comments.push({ user: currentUser.username, text: commentText });
+      localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+      loadReviews();
+    }
+  </script>
+
+</body>
+</html>
